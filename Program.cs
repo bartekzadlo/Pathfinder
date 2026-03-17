@@ -36,4 +36,14 @@ app.MapPost("/api/route", (UserPreferences preferences, RouteGeneratorService ro
 })
 .WithName("GenerateRoute");
 
+app.MapPost("/api/route/recalculate", (RecalculateRequest request, RouteGeneratorService routeService) =>
+{
+    var plan = routeService.RecalculateRoute(request.Preferences, request.AttractionIds);
+    return Results.Ok(plan);
+})
+.WithName("RecalculateRoute");
+
 app.Run();
+
+// DTO for recalculate request
+public record RecalculateRequest(UserPreferences Preferences, List<int> AttractionIds);

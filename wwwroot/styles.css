@@ -238,10 +238,8 @@ select option {
 
 /* Modal / Explainer */
 .explainer-toggle {
-    position: absolute;
-    top: 50%;
-    right: 0;
-    transform: translateY(-50%);
+    display: inline-block;
+    margin-top: 1rem;
     background: rgba(255,255,255,0.1);
     border: 1px solid rgba(255,255,255,0.2);
     color: var(--text-main);
@@ -322,8 +320,6 @@ select option {
 
 @media (max-width: 600px) {
     .explainer-toggle {
-        position: static;
-        transform: none;
         margin-top: 1rem;
         display: inline-block;
     }
@@ -433,6 +429,66 @@ select option {
     color: var(--text-muted);
     display: flex;
     justify-content: space-between;
+}
+
+.attraction-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+}
+
+.attraction-header h3 {
+    margin: 0;
+    padding-right: 0.5rem;
+}
+
+.swap-btn {
+    padding: 0.3rem 0.6rem !important;
+    width: auto !important;
+    font-size: 0.8rem !important;
+    white-space: nowrap;
+}
+
+.swap-select {
+    width: 100%;
+    margin-bottom: 0.8rem;
+    padding: 0.5rem;
+    background: #fff;
+    color: #000;
+    border-radius: 4px;
+    font-family: inherit;
+    border: none;
+}
+
+.transport-connection {
+    display: flex;
+    align-items: center;
+    padding-left: 2rem;
+    margin: -0.5rem 0 0.5rem 0;
+    color: var(--text-muted);
+    font-size: 0.85rem;
+}
+
+.transport-icon {
+    background: rgba(255,255,255,0.1);
+    border-radius: 50%;
+    width: 30px;
+    height: 30px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin-right: 1rem;
+    position: relative;
+    z-index: 2;
+    border: 1px solid rgba(255,255,255,0.2);
+}
+
+.transport-details {
+    display: flex;
+    gap: 1rem;
+    background: rgba(0,0,0,0.2);
+    padding: 0.3rem 0.8rem;
+    border-radius: 12px;
 }
 
 @keyframes slideUp {

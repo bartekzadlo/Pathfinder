@@ -45,11 +45,21 @@ public class RouteGeneratorService
             Score = (a.ExplorationScore * exploreWeight) + (a.RelaxationScore * relaxWeight)
         }).OrderByDescending(x => x.Score).ToList();
 
-        // Set speed based on transport
+        // Set speed and icon based on transport
         // Walking ~5 km/h, Bus ~15 km/h, Car ~25 km/h
         double speedKmPerHour = 5.0;
-        if (preferences.TransportMode == "PublicTransport") speedKmPerHour = 15.0;
-        if (preferences.TransportMode == "Car") speedKmPerHour = 25.0;
+        string transportIcon = "🚶"; // Default Walking
+        
+        if (preferences.TransportMode == "PublicTransport") 
+        {
+            speedKmPerHour = 15.0;
+            transportIcon = "🚌";
+        }
+        else if (preferences.TransportMode == "Car") 
+        {
+            speedKmPerHour = 25.0;
+            transportIcon = "🚗";
+        }
 
         double speedKmPerMin = speedKmPerHour / 60.0;
 
@@ -57,7 +67,7 @@ public class RouteGeneratorService
         
         // Let's start with the highest scoring attraction
         var currentAttraction = scoredAttractions.First().Attraction;
-        plan.Attractions.Add(currentAttraction);
+        plan.StartAttraction = currentAttraction;
         plan.TotalEstimatedTimeMinutes += currentAttraction.RecommendedDurationMinutes;
         
         var remainingPool = scoredAttractions.Skip(1).Select(x => x.Attraction).ToList();
@@ -99,7 +109,16 @@ public class RouteGeneratorService
             }
 
             plan.TotalDistanceKm += shortestDistance;
-            plan.Attractions.Add(bestNext);
+            
+            // Add segment hop
+            plan.Segments.Add(new RouteSegment
+            {
+                ToAttraction = bestNext,
+                TravelDistanceKm = Math.Round(shortestDistance, 2),
+                TravelTimeMinutes = travelTimeMins,
+                TransportModeIcon = transportIcon
+            });
+
             plan.TotalEstimatedTimeMinutes += (travelTimeMins + bestNext.RecommendedDurationMinutes);
             
             remainingPool.Remove(bestNext);
@@ -122,8 +141,101 @@ public class RouteGeneratorService
                 sa.Attraction.IsOutdoor
             }),
             CalculatedExploreWeight = exploreWeight,
-            CalculatedRelaxWeight = relaxWeight
+            CalculatedRelaxWeight = relaxWeight,
+            TransportAssumptions = new
+            {
+                SpeedKmPerHour = speedKmPerHour,
+                BaseIcon = transportIcon,
+                SegmentCount = plan.Segments.Count
+            }
         };
+
+        // Populate Unused Attractions for the swap feature
+        plan.UnusedAttractions = remainingPool.ToList();
+
+        return plan;
+    }
+
+    public RoutePlan RecalculateRoute(UserPreferences preferences, List<int> orderedAttractionIds)
+    {
+        var allAttractions = _attractionRepository.GetAllAttractions();
+
+        // Filter out outdoor if raining
+        if (preferences.Weather.Equals("Raining", StringComparison.OrdinalIgnoreCase))
+        {
+            allAttractions = allAttractions.Where(a => !a.IsOutdoor).ToList();
+        }
+
+        // Filter by City
+        allAttractions = allAttractions.Where(a => a.City.Equals(preferences.City, StringComparison.OrdinalIgnoreCase)).ToList();
+
+        if (!allAttractions.Any() || !orderedAttractionIds.Any())
+        {
+            return new RoutePlan();
+        }
+
+        // Fetch selected attractions in order
+        var selectedAttractions = orderedAttractionIds
+            .Select(id => allAttractions.FirstOrDefault(a => a.Id == id))
+            .Where(a => a != null)
+            .Cast<Attraction>()
+            .ToList();
+
+        if (!selectedAttractions.Any())
+        {
+            return new RoutePlan();
+        }
+
+        // Set speed and icon based on transport
+        double speedKmPerHour = 5.0;
+        string transportIcon = "🚶";
+        
+        if (preferences.TransportMode == "PublicTransport") 
+        {
+            speedKmPerHour = 15.0;
+            transportIcon = "🚌";
+        }
+        else if (preferences.TransportMode == "Car") 
+        {
+            speedKmPerHour = 25.0;
+            transportIcon = "🚗";
+        }
+
+        double speedKmPerMin = speedKmPerHour / 60.0;
+        var plan = new RoutePlan();
+
+        // Process Start Attraction
+        var currentAttraction = selectedAttractions.First();
+        plan.StartAttraction = currentAttraction;
+        plan.TotalEstimatedTimeMinutes += currentAttraction.RecommendedDurationMinutes;
+
+        // Process Segments
+        foreach (var nextAttraction in selectedAttractions.Skip(1))
+        {
+            double dist = CalculateDistance(
+                currentAttraction.Latitude, currentAttraction.Longitude,
+                nextAttraction.Latitude, nextAttraction.Longitude);
+
+            int travelTimeMins = (int)Math.Ceiling(dist / speedKmPerMin);
+
+            plan.TotalDistanceKm += dist;
+            plan.Segments.Add(new RouteSegment
+            {
+                ToAttraction = nextAttraction,
+                TravelDistanceKm = Math.Round(dist, 2),
+                TravelTimeMinutes = travelTimeMins,
+                TransportModeIcon = transportIcon
+            });
+
+            plan.TotalEstimatedTimeMinutes += (travelTimeMins + nextAttraction.RecommendedDurationMinutes);
+            currentAttraction = nextAttraction;
+        }
+
+        plan.TotalDistanceKm = Math.Round(plan.TotalDistanceKm, 2);
+
+        // Populate Unused Attractions
+        var usedIds = new HashSet<int>(selectedAttractions.Select(a => a.Id));
+        plan.UnusedAttractions = allAttractions.Where(a => !usedIds.Contains(a.Id)).ToList();
 
         return plan;
     }

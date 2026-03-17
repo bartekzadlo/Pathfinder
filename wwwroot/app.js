@@ -1,4 +1,10 @@
 document.addEventListener('DOMContentLoaded', () => {
+    // Global state for swap feature
+    let currentPreferences = null;
+    let currentOrderedIds = [];
+    let currentUnusedAttractions = [];
+    let lastRouteData = null;
+
     const walkingDistanceInput = document.getElementById('walkingDistance');
     const distanceValue = document.getElementById('distanceValue');
     const form = document.getElementById('preferences-form');
@@ -47,7 +53,7 @@ document.addEventListener('DOMContentLoaded', () => {
         e.preventDefault();
 
         // Gather preferences
-        const preferences = {
+        currentPreferences = {
             city: document.getElementById('city').value,
             walkingDistanceKm: parseFloat(document.getElementById('walkingDistance').value),
             transportMode: document.getElementById('transportMode').value,
@@ -66,7 +72,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 headers: {
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify(preferences)
+                body: JSON.stringify(currentPreferences)
             });
 
             if (!response.ok) {
@@ -90,8 +96,17 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     function displayResults(data) {
+        lastRouteData = data;
         loadingScreen.classList.add('hidden');
         resultsScreen.classList.remove('hidden');
+
+        // Extract ordered IDs for swapping
+        currentOrderedIds = [];
+        if (data.startAttraction) currentOrderedIds.push(data.startAttraction.id);
+        if (data.segments) {
+            data.segments.forEach(seg => currentOrderedIds.push(seg.toAttraction.id));
+        }
+        currentUnusedAttractions = data.unusedAttractions || [];
 
         document.getElementById('res-distance').textContent = `${data.totalDistanceKm.toFixed(1)} km`;
         
@@ -107,24 +122,33 @@ document.addEventListener('DOMContentLoaded', () => {
         // Render timeline
         attractionsList.innerHTML = '';
         
-        if (!data.attractions || data.attractions.length === 0) {
+        if (!data.startAttraction) {
             attractionsList.innerHTML = '<li><p>Niestety, nie znaleźliśmy atrakcji pasujących do Twoich wymagań.</p></li>';
             return;
         }
 
-        data.attractions.forEach((attr, idx) => {
-            const li = document.createElement('li');
-            li.style.animation = `fadeIn 0.5s ease-out ${idx * 0.15}s both`;
-            
-            const typeEmoji = attr.isOutdoor ? '🌳' : '🏛️';
-            
-            li.innerHTML = `
-                <h3>${idx + 1}. ${attr.name} ${typeEmoji}</h3>
-                <p>
-                    <span>Czas spędzony: ${attr.recommendedDurationMinutes} min</span>
-                </p>
+        // Render Start Attraction
+        const startLi = renderAttractionLi(data.startAttraction, 0);
+        attractionsList.appendChild(startLi);
+
+        // Render Segments
+        data.segments.forEach((seg, idx) => {
+            // Render Transport connection
+            const connectionDiv = document.createElement('div');
+            connectionDiv.className = 'transport-connection';
+            connectionDiv.style.animation = `fadeIn 0.5s ease-out ${(idx * 0.15) + 0.1}s both`;
+            connectionDiv.innerHTML = `
+                <div class="transport-icon">${seg.transportModeIcon}</div>
+                <div class="transport-details">
+                    <span>${seg.travelDistanceKm.toFixed(1)} km</span>
+                    <span>${seg.travelTimeMinutes} min</span>
+                </div>
             `;
-            attractionsList.appendChild(li);
+            attractionsList.appendChild(connectionDiv);
+
+            // Render next Attraction
+            const destLi = renderAttractionLi(seg.toAttraction, idx + 1);
+            attractionsList.appendChild(destLi);
         });
 
         // Populate debug data if exists
@@ -132,7 +156,9 @@ document.addEventListener('DOMContentLoaded', () => {
             let tableHTML = `
                 <div style="margin-bottom: 1rem;">
                     <strong>Współczynnik Eksploracji (ExploreWeight):</strong> ${data.debugData.calculatedExploreWeight.toFixed(2)}<br>
-                    <strong>Współczynnik Relaksu (RelaxWeight):</strong> ${data.debugData.calculatedRelaxWeight.toFixed(2)}
+                    <strong>Współczynnik Relaksu (RelaxWeight):</strong> ${data.debugData.calculatedRelaxWeight.toFixed(2)}<br>
+                    <strong>Domyślne tempo podróży:</strong> ${data.debugData.transportAssumptions.speedKmPerHour} km/h (${data.debugData.transportAssumptions.baseIcon})<br>
+                    <strong>Ilość odcinków w trasie:</strong> ${data.debugData.transportAssumptions.segmentCount}
                 </div>
                 <table style="width: 100%; border-collapse: collapse; text-align: left;">
                     <thead>
@@ -179,5 +205,89 @@ document.addEventListener('DOMContentLoaded', () => {
             form.style.animation = null; 
         };
         attractionsList.appendChild(startOverBtn);
+    }
+
+    // Helper to render attraction LI with swap logic
+    function renderAttractionLi(attraction, index) {
+        const li = document.createElement('li');
+        li.style.animation = `fadeIn 0.5s ease-out 0s both`;
+        
+        const headerDiv = document.createElement('div');
+        headerDiv.className = 'attraction-header';
+        headerDiv.innerHTML = `<h3>${index + 1}. ${attraction.name} ${attraction.isOutdoor ? '🌳' : '🏛️'}</h3>`;
+        
+        const swapBtn = document.createElement('button');
+        swapBtn.className = 'secondary-btn swap-btn';
+        swapBtn.innerHTML = '🔄 Zamień';
+        swapBtn.onclick = () => showSwapUI(li, attraction, index);
+        
+        headerDiv.appendChild(swapBtn);
+        li.appendChild(headerDiv);
+
+        const descP = document.createElement('p');
+        descP.innerHTML = `<span>Czas spędzony: ${attraction.recommendedDurationMinutes} min</span>`;
+        li.appendChild(descP);
+        
+        return li;
+    }
+
+    function showSwapUI(liElement, currentAttraction, index) {
+        let optionsHtml = '<option value="">-- Wybierz inne miejsce --</option>';
+        currentUnusedAttractions.forEach(attr => {
+            optionsHtml += `<option value="${attr.id}">${attr.name} (${attr.isOutdoor ? 'Plener' : 'Budynek'})</option>`;
+        });
+
+        liElement.innerHTML = `
+            <div style="padding: 1rem; background: rgba(0,0,0,0.3); border-radius: 8px;">
+                <p style="margin-bottom: 0.5rem; color: #fff; font-size: 0.9rem;">Zamieniasz: <strong>${currentAttraction.name}</strong></p>
+                <select id="swap-select-${index}" class="swap-select">
+                    ${optionsHtml}
+                </select>
+                <div style="display: flex; gap: 0.5rem;">
+                    <button id="confirm-swap-${index}" class="primary-btn" style="flex: 1; padding: 0.5rem; font-size: 0.85rem;">Zapisz</button>
+                    <button id="cancel-swap-${index}" class="secondary-btn" style="flex: 1; padding: 0.5rem; font-size: 0.85rem;">Anuluj</button>
+                </div>
+            </div>
+        `;
+
+        document.getElementById(`cancel-swap-${index}`).onclick = () => {
+            displayResults(lastRouteData);
+        };
+
+        document.getElementById(`confirm-swap-${index}`).onclick = () => {
+            const select = document.getElementById(`swap-select-${index}`);
+            const newId = parseInt(select.value);
+            if(!newId) return;
+
+            const newOrderedIds = [...currentOrderedIds];
+            newOrderedIds[index] = newId;
+            fetchRecalculatedRoute(newOrderedIds);
+        };
+    }
+
+    async function fetchRecalculatedRoute(newIds) {
+        loadingScreen.classList.remove('hidden');
+        resultsScreen.classList.add('hidden');
+
+        try {
+            const payload = {
+                preferences: currentPreferences,
+                attractionIds: newIds
+            };
+            const response = await fetch('/api/route/recalculate', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(payload)
+            });
+            
+            if(!response.ok) throw new Error('API Error');
+            const newData = await response.json();
+            
+            displayResults(newData);
+        } catch (error) {
+            console.error('Failed to recalculate', error);
+            alert('Wystąpił błąd podczas zamiany.');
+            displayResults(lastRouteData); // restore
+        }
     }
 });
