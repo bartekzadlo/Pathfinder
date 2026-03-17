@@ -19,13 +19,11 @@ public class RouteGeneratorService
     {
         var allAttractions = _attractionRepository.GetAllAttractions();
 
-        // 1. Filter out outdoor if raining (simplified rule)
         if (preferences.Weather.Equals("Raining", StringComparison.OrdinalIgnoreCase))
         {
             allAttractions = allAttractions.Where(a => !a.IsOutdoor).ToList();
         }
 
-        // 2. Filter by City
         allAttractions = allAttractions.Where(a => a.City.Equals(preferences.City, StringComparison.OrdinalIgnoreCase)).ToList();
 
         if (!allAttractions.Any())
@@ -33,9 +31,6 @@ public class RouteGeneratorService
             return new RoutePlan();
         }
 
-        // 2. Score attractions based on user preference
-        // FocusType 1 = Relax, 10 = Explore
-        // Normalize preference to 0.1 to 1.0 multiplier
         double exploreWeight = (preferences.FocusType) / 10.0;
         double relaxWeight = (11 - preferences.FocusType) / 10.0;
 
@@ -45,17 +40,15 @@ public class RouteGeneratorService
             Score = (a.ExplorationScore * exploreWeight) + (a.RelaxationScore * relaxWeight)
         }).OrderByDescending(x => x.Score).ToList();
 
-        // Set speed and icon based on transport
-        // Walking ~5 km/h, Bus ~15 km/h, Car ~25 km/h
         double speedKmPerHour = 5.0;
-        string transportIcon = "🚶"; // Default Walking
-        
-        if (preferences.TransportMode == "PublicTransport") 
+        string transportIcon = "🚶";
+
+        if (preferences.TransportMode == "PublicTransport")
         {
             speedKmPerHour = 15.0;
             transportIcon = "🚌";
         }
-        else if (preferences.TransportMode == "Car") 
+        else if (preferences.TransportMode == "Car")
         {
             speedKmPerHour = 25.0;
             transportIcon = "🚗";
@@ -64,17 +57,15 @@ public class RouteGeneratorService
         double speedKmPerMin = speedKmPerHour / 60.0;
 
         var plan = new RoutePlan();
-        
-        // Let's start with the highest scoring attraction
+
         var currentAttraction = scoredAttractions.First().Attraction;
         plan.StartAttraction = currentAttraction;
         plan.TotalEstimatedTimeMinutes += currentAttraction.RecommendedDurationMinutes;
-        
+
         var remainingPool = scoredAttractions.Skip(1).Select(x => x.Attraction).ToList();
 
         while (remainingPool.Any())
         {
-            // Find closest from pool
             Attraction? bestNext = null;
             double shortestDistance = double.MaxValue;
 
@@ -83,7 +74,7 @@ public class RouteGeneratorService
                 double dist = CalculateDistance(
                     currentAttraction.Latitude, currentAttraction.Longitude,
                     candidate.Latitude, candidate.Longitude);
-                
+
                 if (dist < shortestDistance)
                 {
                     shortestDistance = dist;
@@ -93,24 +84,20 @@ public class RouteGeneratorService
 
             if (bestNext == null) break;
 
-            // Check if adding this distance breaks the preference limit
             if (plan.TotalDistanceKm + shortestDistance > preferences.WalkingDistanceKm && preferences.TransportMode == "Walking")
             {
-                break; // Stop if we exceed walking distance for walking explicitly
+                break;
             }
 
-            // Estimate travel time
             int travelTimeMins = (int)Math.Ceiling(shortestDistance / speedKmPerMin);
 
-            // Let's say we don't plan a trip longer than ~8 hours total (480 mins)
             if (plan.TotalEstimatedTimeMinutes + travelTimeMins + bestNext.RecommendedDurationMinutes > 480)
             {
                 break;
             }
 
             plan.TotalDistanceKm += shortestDistance;
-            
-            // Add segment hop
+
             plan.Segments.Add(new RouteSegment
             {
                 ToAttraction = bestNext,
@@ -120,14 +107,13 @@ public class RouteGeneratorService
             });
 
             plan.TotalEstimatedTimeMinutes += (travelTimeMins + bestNext.RecommendedDurationMinutes);
-            
+
             remainingPool.Remove(bestNext);
             currentAttraction = bestNext;
         }
 
         plan.TotalDistanceKm = Math.Round(plan.TotalDistanceKm, 2);
 
-        // Populate Debug Panel Data
         plan.DebugData = new
         {
             Preferences = preferences,
@@ -150,7 +136,6 @@ public class RouteGeneratorService
             }
         };
 
-        // Populate Unused Attractions for the swap feature
         plan.UnusedAttractions = remainingPool.ToList();
 
         return plan;
@@ -160,13 +145,11 @@ public class RouteGeneratorService
     {
         var allAttractions = _attractionRepository.GetAllAttractions();
 
-        // Filter out outdoor if raining
         if (preferences.Weather.Equals("Raining", StringComparison.OrdinalIgnoreCase))
         {
             allAttractions = allAttractions.Where(a => !a.IsOutdoor).ToList();
         }
 
-        // Filter by City
         allAttractions = allAttractions.Where(a => a.City.Equals(preferences.City, StringComparison.OrdinalIgnoreCase)).ToList();
 
         if (!allAttractions.Any() || !orderedAttractionIds.Any())
@@ -174,7 +157,6 @@ public class RouteGeneratorService
             return new RoutePlan();
         }
 
-        // Fetch selected attractions in order
         var selectedAttractions = orderedAttractionIds
             .Select(id => allAttractions.FirstOrDefault(a => a.Id == id))
             .Where(a => a != null)
@@ -186,10 +168,9 @@ public class RouteGeneratorService
             return new RoutePlan();
         }
 
-        // Set speed and icon based on transport
         double speedKmPerHour = 5.0;
         string transportIcon = "🚶";
-        
+
         if (preferences.TransportMode == "PublicTransport") 
         {
             speedKmPerHour = 15.0;
@@ -204,12 +185,10 @@ public class RouteGeneratorService
         double speedKmPerMin = speedKmPerHour / 60.0;
         var plan = new RoutePlan();
 
-        // Process Start Attraction
         var currentAttraction = selectedAttractions.First();
         plan.StartAttraction = currentAttraction;
         plan.TotalEstimatedTimeMinutes += currentAttraction.RecommendedDurationMinutes;
 
-        // Process Segments
         foreach (var nextAttraction in selectedAttractions.Skip(1))
         {
             double dist = CalculateDistance(
@@ -233,27 +212,23 @@ public class RouteGeneratorService
 
         plan.TotalDistanceKm = Math.Round(plan.TotalDistanceKm, 2);
 
-        // Populate Unused Attractions
         var usedIds = new HashSet<int>(selectedAttractions.Select(a => a.Id));
         plan.UnusedAttractions = allAttractions.Where(a => !usedIds.Contains(a.Id)).ToList();
 
         return plan;
     }
 
-    /// <summary>
-    /// Computes the distance in km using the Haversine formula
-    /// </summary>
     private double CalculateDistance(double lat1, double lon1, double lat2, double lon2)
     {
-        var R = 6371d; // Radius of the earth in km
-        var dLat = Deg2Rad(lat2 - lat1);  
-        var dLon = Deg2Rad(lon2 - lon1); 
-        var a = 
+        var R = 6371d;
+        var dLat = Deg2Rad(lat2 - lat1);
+        var dLon = Deg2Rad(lon2 - lon1);
+        var a =
             Math.Sin(dLat / 2d) * Math.Sin(dLat / 2d) +
-            Math.Cos(Deg2Rad(lat1)) * Math.Cos(Deg2Rad(lat2)) * 
-            Math.Sin(dLon / 2d) * Math.Sin(dLon / 2d); 
-        var c = 2d * Math.Atan2(Math.Sqrt(a), Math.Sqrt(1d - a)); 
-        var d = R * c; 
+            Math.Cos(Deg2Rad(lat1)) * Math.Cos(Deg2Rad(lat2)) *
+            Math.Sin(dLon / 2d) * Math.Sin(dLon / 2d);
+        var c = 2d * Math.Atan2(Math.Sqrt(a), Math.Sqrt(1d - a));
+        var d = R * c;
         return d;
     }
 
