@@ -153,13 +153,9 @@ document.addEventListener('DOMContentLoaded', () => {
             // Render Transport connection
             const connectionDiv = document.createElement('div');
             connectionDiv.className = 'transport-connection';
-            connectionDiv.style.animation = `fadeIn 0.5s ease-out ${(idx * 0.15) + 0.1}s both`;
             connectionDiv.innerHTML = `
-                <div class="transport-icon">${seg.transportModeIcon}</div>
-                <div class="transport-details">
-                    <span>${seg.travelDistanceKm.toFixed(1)} km</span>
-                    <span>${seg.travelTimeMinutes} min</span>
-                </div>
+                ↓ --- TRANSPORT --- ↓<br>
+                Odległość: ${seg.travelDistanceKm.toFixed(1)} km | Czas: ${seg.travelTimeMinutes} min
             `;
             attractionsList.appendChild(connectionDiv);
 
@@ -227,7 +223,6 @@ document.addEventListener('DOMContentLoaded', () => {
     // Helper to render attraction LI with swap logic
     function renderAttractionLi(attraction, index) {
         const li = document.createElement('li');
-        li.style.animation = `fadeIn 0.5s ease-out 0s both`;
         
         const headerDiv = document.createElement('div');
         headerDiv.className = 'attraction-header';
@@ -255,14 +250,15 @@ document.addEventListener('DOMContentLoaded', () => {
         });
 
         liElement.innerHTML = `
-            <div style="padding: 1rem; background: rgba(0,0,0,0.3); border-radius: 8px;">
-                <p style="margin-bottom: 0.5rem; color: #fff; font-size: 0.9rem;">Zamieniasz: <strong>${currentAttraction.name}</strong></p>
+            <div style="padding: 10px; background-color: #c0c0c0; border: 3px inset #ffffff;">
+                <p style="margin-bottom: 5px; color: #000000; font-weight: bold;">ZAMIENIASZ: ${currentAttraction.name}</p>
                 <select id="swap-select-${index}" class="swap-select">
                     ${optionsHtml}
                 </select>
-                <div style="display: flex; gap: 0.5rem;">
-                    <button id="confirm-swap-${index}" class="primary-btn" style="flex: 1; padding: 0.5rem; font-size: 0.85rem;">Zapisz</button>
-                    <button id="cancel-swap-${index}" class="secondary-btn" style="flex: 1; padding: 0.5rem; font-size: 0.85rem;">Anuluj</button>
+                <br><br>
+                <div style="display: flex; gap: 5px;">
+                    <button id="confirm-swap-${index}" class="primary-btn">Zapisz Zmianę</button>
+                    <button id="cancel-swap-${index}" class="secondary-btn">Anuluj</button>
                 </div>
             </div>
         `;

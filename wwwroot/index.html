@@ -2,27 +2,28 @@
 <html lang="pl">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pathfinder - Twój Plan Zwiedzania</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&display=swap" rel="stylesheet">
+    <title>Pathfinder - Twoj Plan Zwiedzania 1998</title>
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-    <div class="background-animation"></div>
-    
     <div class="container">
         <header>
-            <h1>Pathfinder</h1>
-            <p>Zaplanuj idealny dzień pełen wrażeń.</p>
-            <button id="show-explainer-btn" class="explainer-toggle" title="Dowiedz się, jak to działa">🎓 Jak działa algorytm?</button>
+            <marquee scrollamount="10" bgcolor="#ff0000" style="color: #ffffff; font-size: 24px; font-weight: bold; padding: 5px; border: 3px outset #c0c0c0;">
+                *** WITAMY W PATHFINDER v1.0! *** ZAPLANUJ IDEALNY DZIEŃ PEŁEN WRAŻEŃ *** NAJLEPSZY ALGORYTM 1998 ROKU! ***
+            </marquee>
+            
+            <h1>🌐 PATHFINDER 🌐</h1>
+            <h2><i>Twój wirtualny przewodnik</i></h2>
+            <br>
+            <button id="show-explainer-btn" class="explainer-toggle" title="Dowiedz się, jak to działa">❔ KLIKNIJ TUTAJ ABY ZROZUMIEĆ ALGORYTM ❔</button>
+            <br><br>
+            <hr width="100%" size="5" color="#ffffff">
         </header>
 
-        <main class="glass-panel">
+        <main>
             <form id="preferences-form">
                 <div class="form-group">
-                    <label for="city">Wybierz Miasto</label>
+                    <label for="city">Wybierz Miasto:</label><br>
                     <select id="city">
                         <option value="Warszawa">Warszawa</option>
                         <option value="Kraków">Kraków</option>
@@ -31,118 +32,128 @@
                 </div>
 
                 <div class="form-group">
-                    <label for="walkingDistance">Ile chcesz dzisiaj przejść/przejechać? (w kilometrach)</label>
-                    <div class="range-container">
-                        <input type="range" id="walkingDistance" min="1" max="20" step="1" value="5">
-                        <span id="distanceValue" class="value-display">5 km</span>
-                    </div>
+                    <label for="walkingDistance">Limit kilometrów:</label><br>
+                    <input type="range" id="walkingDistance" min="1" max="20" step="1" value="5">
+                    <br>
+                    Wybrano: <span id="distanceValue" class="value-display">5 km</span>
                 </div>
 
                 <div class="form-group row-group">
                     <div class="col">
-                        <label for="transportMode">Sposób przemieszczania się</label>
+                        <label for="transportMode">Transport:</label><br>
                         <select id="transportMode">
                             <option value="Walking">Pieszo</option>
-                            <option value="PublicTransport">Komunikacja Miejska</option>
+                            <option value="PublicTransport">Komunikacja</option>
                             <option value="Car">Samochód</option>
                         </select>
                     </div>
                     <div class="col">
-                        <label for="weather">Pogoda</label>
+                        <label for="weather">Pogoda dzisiaj:</label><br>
                         <select id="weather">
-                            <option value="Sunny">Słonecznie</option>
-                            <option value="Cloudy">Pochmurno</option>
-                            <option value="Raining">Deszczowo</option>
+                            <option value="Sunny">Słoneczna</option>
+                            <option value="Cloudy">Pochmurna</option>
+                            <option value="Raining">Pada Deszcz</option>
                         </select>
                     </div>
                 </div>
 
                 <div class="form-group">
-                    <label for="focusType">Czego dzisiaj potrzebujesz?</label>
-                    <div class="slider-labels">
-                        <span>Tylko relaks ☕</span>
-                        <span>Aktywne zwiedzanie 🏛️</span>
-                    </div>
+                    <label for="focusType">Czego dzisiaj potrzebujesz?</label><br>
+                    <table width="100%">
+                        <tr>
+                            <td align="left">Tylko relaks</td>
+                            <td align="right">Aktywne zwiedzanie</td>
+                        </tr>
+                    </table>
                     <input type="range" id="focusType" min="1" max="10" step="1" value="5">
                 </div>
 
-                <button type="submit" id="generate-btn" class="primary-btn">Generuj Plan 🚀</button>
+                <button type="submit" id="generate-btn" class="primary-btn">&gt;&gt; GENERUJ TRASĘ &lt;&lt;</button>
             </form>
 
             <div id="loading" class="hidden">
-                <div class="spinner"></div>
-                <p>Przygotowujemy najlepszą trasę...</p>
+                <br>
+                <center>
+                    <marquee width="300" bgcolor="#000000" style="color: #00ff00;">Ładowanie danych z serwera... Proszę czekać...</marquee>
+                </center>
+                <br>
             </div>
 
             <div id="results" class="hidden">
-                <h2>Twój Plan Zwiedzania</h2>
+                <hr width="100%" size="5" color="#ffffff">
+                <h2>!!! TWÓJ PLAN ZWIEDZANIA !!!</h2>
                 <div class="stats-container">
-                    <div class="stat-box">
-                        <span class="stat-label">Dystans</span>
-                        <span class="stat-value" id="res-distance">0 km</span>
-                    </div>
-                    <div class="stat-box">
-                        <span class="stat-label">Szacowany Czas</span>
-                        <span class="stat-value" id="res-time">0 min</span>
-                    </div>
-                    <div class="stat-box" id="gamification-box" style="display: none;">
-                        <span class="stat-label">Zarobione XP</span>
-                        <span class="stat-value" id="res-xp" style="color: gold;">0 XP</span>
-                    </div>
-                    <div class="stat-box" id="gamification-cal-box" style="display: none;">
-                        <span class="stat-label">Spalone Kalorie</span>
-                        <span class="stat-value" id="res-calories" style="color: lightcoral;">0 kcal</span>
-                    </div>
+                    <table width="100%" border="1" cellpadding="5" cellspacing="0" bgcolor="#c0c0c0">
+                        <tr>
+                            <td align="center">
+                                <span class="stat-label">Dystans</span><br>
+                                <span class="stat-value" id="res-distance">0 km</span>
+                            </td>
+                            <td align="center">
+                                <span class="stat-label">Szacowany Czas</span><br>
+                                <span class="stat-value" id="res-time">0 min</span>
+                            </td>
+                        </tr>
+                        <tr id="gamification-box" style="display: none;">
+                            <td align="center" colspan="2">
+                                <span class="stat-label">Zarobione XP</span><br>
+                                <span class="stat-value" id="res-xp" style="color: #0000ff;">0 XP</span>
+                            </td>
+                        </tr>
+                        <tr id="gamification-cal-box" style="display: none;">
+                            <td align="center" colspan="2">
+                                <span class="stat-label">Spalone Kalorie</span><br>
+                                <span class="stat-value" id="res-calories" style="color: #ff0000;">0 kcal</span>
+                            </td>
+                        </tr>
+                    </table>
                 </div>
                 
-                <p id="gamification-message" style="text-align: center; color: gold; font-weight: bold; margin-bottom: 1rem; display: none;"></p>
+                <p id="gamification-message" style="text-align: center; color: #ffff00; font-weight: bold; background-color: #000000; padding: 5px; display: none;"></p>
 
-                
                 <ul id="attractions-list" class="timeline">
                     <!-- Attractions will be injected here -->
                 </ul>
                 
-                <button id="toggle-debug-btn" class="secondary-btn" style="margin-top: 1.5rem; width: 100%;">Pokaż Dane Debuggera (Dev) 🛠️</button>
-                <div id="debug-panel" class="hidden glass-panel" style="margin-top: 1rem; padding: 1rem; font-size: 0.85rem; overflow-x: auto;">
+                <hr width="100%" size="5" color="#ffffff">
+                <button id="toggle-debug-btn" class="secondary-btn" style="width: 100%;">[+] Pokaż Tryb Debuggera (HACKER MODE) [+]</button>
+                <div id="debug-panel" class="hidden" style="margin-top: 10px; background-color: #000000; color: #00ff00; padding: 10px; font-family: 'Courier New', Courier, monospace; border: 3px inset #c0c0c0;">
                     <div id="debug-data-view"></div>
                 </div>
             </div>
         </main>
+        
+        <br><br>
+        <center>
+            <p><small>&copy; 1998 Pathfinder Corp. Best viewed in Netscape Navigator 4.0.</small></p>
+        </center>
     </div>
 
     <!-- Algorithm Explainer Modal -->
     <div id="explainer-modal" class="modal-overlay hidden">
-        <div class="modal-content glass-panel" style="max-width: 800px; max-height: 90vh; overflow-y: auto;">
-            <button id="close-explainer-btn" class="close-btn">&times;</button>
-            <h2>🎓 Jak działa algorytm Pathfinder?</h2>
+        <div class="modal-content">
+            <button id="close-explainer-btn" class="close-btn">[ X ] ZAMKNIJ</button>
+            <h2 style="color: #ff00ff;">Jak działa algorytm Pathfinder?</h2>
             <br>
             
-            <div class="explainer-section">
-                <h3>1. Filtrowanie (Pre-processing)</h3>
-                <p>Zanim algorytm zacznie budować trasę, odrzuca atrakcje, które nie spełniają twardych wymagań. Przykładowo, jeśli wybrano opcję <strong>"Deszczowo"</strong>, z mapy znikają wszystkie parki, bulwary i atrakcje plenerowe (flaga <code>IsOutdoor = true</code>), aby użytkownik nie zmókł.</p>
+            <div class="explainer-section" style="background-color: #c0c0c0; color: #000000; padding: 10px; border: 3px inset #ffffff;">
+                <h3>1. Filtrowanie</h3>
+                <p>Zanim algorytm zacznie budować trasę, odrzuca atrakcje, które nie spełniają twardych wymagań.</p>
             </div>
 
-            <div class="explainer-section">
-                <h3>2. Silnik Scoringowy (Ważenie Atrakcji)</h3>
-                <p>Każda atrakcja opisana w repozytorium (np. Wawel, Zamek Królewski) ma nadany oryginalny <strong>ExplorationScore</strong> (od 1 do 10, określający zmęczenie/historię) oraz <strong>RelaxationScore</strong> (od 1 do 10, określający wypoczynek/naturę).</p>
-                <p>Gdy użytkownik przesuwa suwak <em>"Czego dzisiaj potrzebujesz?"</em>, zmienia wagę dla obydwu metryk. Algorytm wylicza ostateczny wynik atrakcji używając wzoru:</p>
-                <div class="code-block">CalculatedScore = (ExplorationScore * ExploreWeight) + (RelaxationScore * RelaxWeight)</div>
-                <p>Dzięki temu odfiltrowane atrakcje są sortowane od najbardziej pasującej pod aktualny nastrój użytkownika.</p>
+            <div class="explainer-section" style="background-color: #c0c0c0; color: #000000; padding: 10px; border: 3px inset #ffffff;">
+                <h3>2. Silnik Scoringowy</h3>
+                <p>Każda atrakcja opisana w bazie danych ma nadany oryginalny <strong>ExplorationScore</strong> oraz <strong>RelaxationScore</strong>.</p>
+                <div style="background-color: #000080; color: #ffff00; padding: 5px; font-family: 'Courier New', monospace;">CalculatedScore = (ExplorationScore * ExploreWeight) + (RelaxationScore * RelaxWeight)</div>
             </div>
 
-            <div class="explainer-section">
-                <h3>3. Geometria i Pathfinding (Nearest Neighbor)</h3>
-                <p>Aplikacja nie używa zewnętrznych map API jak Google Maps by działać w 100% niezależnie. Aby obliczyć rzeczywisty dystans między dwoma współrzędnymi geograficznymi na Ziemi, aplikacja używa <strong>Formuły Haversine'a</strong>.</p>
-                <p>Sam algorytm doboru to wariacja problemu komiwojażera (tzw. <strong>Najbliższy Sąsiad / Nearest Neighbor</strong>):</p>
-                <ul>
-                    <li>Bierzemy z posortowanej listy u góry atrakcję, która uzyskała <strong>najwyższy wynik dopasowania (Score)</strong> i ustalamy ją jako punkt Startowy.</li>
-                    <li>Następnie sprawdzamy w pętli odległości do wszystkich innych pozostałych atrakcji z listy. Zawsze wygrywa ta fizycznie nabliższa.</li>
-                    <li>Jeśli dystans do następnej połączonej atrakcji nie przekroczy budżetu kilometrów podanego przez użytkownika, a szacowany czas nie przekroczy 8 godzin (uwzględniając domyślne tempo podróży: np. 5km/h dla pieszego i 15km/h dla komunikacji). Atrakcja staje się kolejnym przystankiem!</li>
-                </ul>
+            <div class="explainer-section" style="background-color: #c0c0c0; color: #000000; padding: 10px; border: 3px inset #ffffff;">
+                <h3>3. Geometria (Nearest Neighbor)</h3>
+                <p>Aplikacja używa Formuły Haversine'a do pomiaru krzywizny Ziemi. Wszystko dzieje się na Twojej maszynie - żadnych obcych API!</p>
             </div>
             
-            <p style="text-align: center; color: var(--text-muted); margin-top: 1rem; font-size: 0.9rem;">
-                Dzięki temu podejściu, czas działania algorytmu to zaledwie ułamek sekundy (O(N^2) w najgorszym scenariuszu, co dla limitowanych zbiorów miejskich jest niezauważalne)! ⚡
+            <p style="text-align: center; color: #ffff00; font-weight: bold; background-color: #000080;">
+                <blink>SZALONA PRĘDKOŚĆ LATA 90!</blink>
             </p>
         </div>
     </div>
