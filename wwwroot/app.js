@@ -119,6 +119,23 @@ document.addEventListener('DOMContentLoaded', () => {
         
         document.getElementById('res-time').textContent = timeStr;
 
+        // Gamification logic
+        // Try getting gamification data (it's capital G since it's an anonymous object prop from C#, but might be camelCase via System.Text.Json)
+        const gameData = data.Gamification || data.gamification;
+        if (gameData && gameData.experiencePointsGained > 0) {
+            document.getElementById('gamification-box').style.display = 'flex';
+            document.getElementById('gamification-cal-box').style.display = 'flex';
+            document.getElementById('res-xp').textContent = `${gameData.experiencePointsGained} XP`;
+            document.getElementById('res-calories').textContent = `${gameData.burnedCalories} kcal`;
+            
+            document.getElementById('gamification-message').style.display = 'block';
+            document.getElementById('gamification-message').textContent = `🏅 ${gameData.achievementMessage}`;
+        } else {
+            document.getElementById('gamification-box').style.display = 'none';
+            document.getElementById('gamification-cal-box').style.display = 'none';
+            document.getElementById('gamification-message').style.display = 'none';
+        }
+
         // Render timeline
         attractionsList.innerHTML = '';
         

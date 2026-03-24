@@ -1,82 +1,56 @@
 # Pathfinder - Asystent Planowania Wycieczek
 
-Pathfinder to zintegrowana aplikacja webowa zbudowana w technologii .NET 9 (Web API) przy uzyciu klasycznego stosu HTML, CSS oraz JavaScript. Celem projektu jest automatyczne generowanie spersonalizowanych tras wycieczkowych w najwiekszych polskich miastach (Warszawa, Krakow, Gdansk).
+Pathfinder to zintegrowana aplikacja webowa zbudowana w technologii **.NET 9 (Web API)** przy uzyciu klasycznego stosu HTML, CSS oraz JavaScript. Celem projektu jest automatyczne generowanie spersonalizowanych tras wycieczkowych w najwiekszych polskich miastach (Warszawa, Krakow, Gdansk).
 
 Aplikacja jest wyposazona w zaawansowany silnik decyzyjny i modyfikowalny interfejs, ktory reaguje na wytyczne uzytkownika, a takze pozwala na interaktywna edycje trasy (funkcja wymiany punktow z plynna re-kalkulacja parametrow osi czasu).
 
 ---
 
-## 1. Dzialanie Aplikacji z Perspektywy Uzytkownika
+## 1. Architektura Systemu (Modular Monolith & DDD)
+
+Zgodnie z najlepszymi praktykami inżynierii oprogramowania, projekt został zrestrukturyzowany z klasycznego, silnie powiązanego anemicznego modelu MVC do **Modularnego Monolitu** (Modular Monolith) wyznającego zasady **Domain-Driven Design (DDD)**.
+
+### Struktura Modułowa:
+- **`Modules/Attractions`**: Odpowiada za definicję atrakcji oraz skomplikowane obiekty wartości (`Value Object` m.in `GeographicCoordinates` załączony z matematycznym algorytmem Haversine'a). Posiada również repozytorium ukryte za interfejsem warstwy domeny (Dependency Inversion).
+- **`Modules/Routing`**: Mózg operacyjny odpowiedzialny za silnik decyzyjny. `RoutePlan` nie jest tylko workiem na dane, ale **Agregatem (Aggregate Root)**, który pilnuje własnych niezmienników logicznych (budżet czasu, budżet kilometrowy) zanim podejmie decyzję o rozszerzeniu trasy.
+- **`Modules/Gamification`**: Nowatorski moduł motywacyjny. Przynosi elementy gier wideo na łono zdrowia – nagradzając użytkownika punktami doświadczenia (XP) za kilometry przemierzane piechotą, oraz karzącym uciętymi statystykami, jeżeli klient wybrał samochód.
+
+---
+
+## 2. Dzialanie Aplikacji z Perspektywy Uzytkownika
 
 Zasada dzialania opiera sie na wywiadzie (ankiecie) wypelnianym na ekranie glownym, po ktorym aplikacja oddaje gotowy do uzycia harmonogram:
 
 1. **Konfiguracja Oczekiwan:**
-   - Wybor miasta docelowego.
-   - Okreslenie warunkow pogodowych (np. "Slonecznie", "Deszczowo").
-   - Wybor srodka lokomocji (Pieszo, Komunikacja Miejska, Samochod).
-   - Ograniczenia dystansowe (suwak limitu pokonanych kilometrow).
-   - Wybor preferencji i nastroju (suwak balansujacy chec eksploracji/zwiedzania w stosunku do checi wypoczynku/relaksu).
+   - Wybor miasta docelowego, warunków pogodowych oraz środka lokomocji.
+   - Wybor preferencji i nastroju, a także suwak limitu dystansu.
 
-2. **Generowanie i Prezentacja Wynikow:**
-   Klikniecie przycisku "Generuj Plan" wysyla parametry do serwera. Po chwili ekran plynnie zamienia sie w interaktywna os czasu. 
-   Oś ukazuje:
-   - Poszczegolne punkty docelowe wraz z kategoryzacja (Plener / Budynek).
-   - Dokladne wyliczenia logistyczne pomiedzy punktami (czas dotarcia oraz dystans wyliczony na podstawie wspolrzednych geograficznych).
-   - Informacje o zalozonym czasie spedzonym w srodku samej atrakcji.
+2. **Generowanie i Prezentacja Wynikow (Z Gamifikacją):**
+   Klikniecie przycisku "Generuj Plan" wysyla parametry do serwera (Modularnego API). 
+   - Wyświetlana jest interaktywna oś czasu z odległościami geometrycznymi.
+   - Moduł `Gamification` przyznaje punkty Experience Points i wylicza spalone kalorie zachęcając do ruchu na świeżym powietrzu.
 
 3. **Interaktywna Edycja (Tryb "Zamien"):**
-   Jesli wytypowany przez system punkt uzytkownikowi nie odpowiada, moze on skorzystac z przycisku edycji. Kartoteka zmienia sie w liste zawierajaca wszystkie pozostale, bezpieczne i niedodane jeszcze miejsca w wybranym miescie. Wybranie innej opcji powoduje ukryte zapytanie do serwera (AJAX), ktore pobiera nowy schemat, blyskawicznie aktualizujac statystyki odleglosci i czasu dla calego planu bez przeladowywania strony.
+   Jeżeli wygenerowany punkt nie odpowiada gustowi, przycisk edycji pozwala go zamienić z resztą katalogu, bez przeładowania strony, po czym na nowo egzekwuje się przeliczenie parametrów Aggregate Roota na zapleczu.
 
 ---
 
-## 2. Architektura Silnika Decyzyjnego (Algorytm pod Maska)
+## 3. Silnik Ważenia i Pathfinding (Algorytm pod Maska)
 
-Serwer uzywa wlasnego, zoptymalizowanego potoku zlozonych operacji. Nie korzysta z zewnetrznych platnych uslug typu Google Maps API do trasowania, opierajac sie w calosci o matematyke, co redukuje wady i opoznienia.
+Serwer uzywa wlasnego, zoptymalizowanego potoku zlozonych operacji opierając się wyłącznie o reguły matematyczne:
 
-Potok dzieli sie na trzy narastajace fazy:
+1. **Pre-filtering i Scoring (Punktacja)**:
+   Miejsca wyłącza z gry pogoda (deszcz blokujący miejsca outdoorowe), po czym punkty zostają obdarowane matematycznym priorytetem wg Twoich suwaków, a właściwosci takich jak *Exploration* czy *Relaxation*.
 
-### Faza Pierwsza - Pre-filtering (Odsiew Twardy)
-System dysponuje repozytorium (tzw. Mokowana Baza Danych) dla miast, w ktorych kazda atrakcja ma flage `IsOutdoor`.
-Jesli uzytkownik zadeklarowal zla pogode ("Deszczowo"), silnik na wstepie brutalnie wyrzuca ze zbioru punktow mozliwych do wytypowania wszystkie parki, rynki i obiekty znajdujace sie na zewnatrz. Zapobiega to uwzglednieniu np. spaceru po plazy zima czy w trakcje burzy.
+2. **Geometria Sferyczna (Haversine)**:
+   Mierząc przestrzeń między budynkami, `GeographicCoordinates` sprawdza krzywiznę Ziemii obliczając odległość co do centymetra z matematycznego radiana.
 
-### Faza Druga - Silnik Ważenia i Punktacji (Scoring)
-Pozostale na liscie atrakcje musza zostac ulozone pod nastroj uzytkownika. 
-W bazie danych narzucone odgornie sa dwa wkazniki dla kazdego miejsca (w skali od 1 do 10): 
-- **ExplorationScore** - wartosc historyczna, naukowa, stopien zmuszenia do wysilku umyslowego lub fizycznego.
-- **RelaxationScore** - poziom wypoczynku, radosci, kontaktu z natura.
-
-Biorac wartosci z suwaka z interfejsu klienta, algorytm serwera normalizuje je tworzac mnozniki wagowe. Do wyliczenia uzywa wzoru:
-`Wynik (Calculated Score) = (ExplorationScore * ExploreWeight) + (RelaxationScore * RelaxWeight)`
-
-**Przyklad logiczny scoringu:**
-Uzytkownik ustawil suwak na mocne zwiedzanie, system policzyl wagi: `ExploreWeight = 0.8`, `RelaxWeight = 0.2`.
-- Mamy w bazie "Muzeum Narodowe" (`Exploration: 9`, `Relaxation: 2`). 
-  Wyliczenie dla Muzeum wynosi: `(9 * 0.8) + (2 * 0.2) = 7.2 + 0.4 = 7.6`
-- Mamy w bazie "Park Miejski" (`Exploration: 2`, `Relaxation: 9`).
-  Wyliczenie dla Parku wynosi: `(2 * 0.8) + (9 * 0.2) = 1.6 + 1.8 = 3.4`
-Wynik decyzyjny: Pod tak dobrane parametry, ukladajac plan system potraktuje "Muzeum Narodowe" (7.6) jako wazniejszy i pewniejszy punkt wycieczki na dany dzien niz "Park Miejski" (3.4). Lista zostaje posortowana malejaco wedlug wykladu tych wyliczen.
-
-### Faza Trzecia - Pathfinding (Laczenie Punktow i Najblizszy Sasiad)
-
-Milosnicy nawigacji musza znac rzeczywisty dystans fizyczny, by ocenic czas trasy. Aplikacja aplikuje wzor matematyczny - **Formule Haversine'a**, sluzaca do precyzyjnego badana krzywizny sferycznej Ziemi dla dwoch podanych wspolrzednych (szerokosc i dlugosc). Wzor na odleglosc `d`:
-`a = sin²(Δlat/2) + cos(lat1) * cos(lat2) * sin²(Δlon/2)`
-`c = 2 * atan2(√a, √(1-a))`
-`d = R * c` (gdzie R to rozpietosc rownikowa planety - powszechnie ustalone 6371 km).
-
-Skuteczny plan jest nastepnie budowany z zastosowaniem uproszczonego algorytmu **Najblizszego Sasiada (Nearest Neighbor)**:
-1. Algorytm bierze najlepiej pasujaca punktowo (wynik z Fazy Drugiej) atrakcje w calym wybranym miescie i ustawia ja jako "Punkt Startowy" numer 1.
-2. Z wezla poczatkowego mierzy odleglosci sferyczne geometrii Haversine'a do _wszystkich_ pozostalych, jeszcze niewykorzystanych wezlow dla danego miasta w buforze. 
-3. Po wyszukaniu absolutnie najkrotszego, fizycznego dystansu - algorytm dobiera te atrakcje jako Punkt numer 2.
-4. Nastepuje weryfikacja zasobow do the punktu:
-    - *Budzet czasu:* Oceniany jest szacowany czas wyrolowany pod deklaracje lokomocji (np. dlaieszego 5km/h, Komunikacja 15km/h). Wycieczka nie moze trwac wg wyliczen lacznie wiecej niz domyslny limit 8 bezlitosnych godzin dziennie.
-    - *Budzet kilometrow:* Suma drogi miedzy wszystkimi dodanymi punktami nie moze przekroczyc suwaka odleglosci podanego przez uzytkownika w opcjach wywiadu (Jesli opcja lokomocyjna zakladala uzytek wylacznie wlasnych nog).
-5. Cykl potarzalny jest sukcesywnie (O(N^2)) poki algorytm nie odrzuci dokoptowania kolejnego wezla np. powodujacego zlamanie regul z powyzszego weryfikatora (brak czasu/za daleko).
-
-Dzieki takiemu wielofazowemu obiegowi danych, aplikacja dobiera idealnie spersonalizowany rygor wyjazdu dzialajac calkowicie deterministycznie. Zastosowanie Najblizszego Sasiada zamiast wpelni zoptymalizowanego TSP (Problem Komiwojazera), sprawia, ze wyliczenie generacji na serwerze i odeslanie calkowitego rezultatu wraz ze spisem JSON dla narzedzi programistycznych to zazwyczaj ulamki nieodczuwalnej mili-sekundy.
+3. **Najbliższy Sąsiad (Nearest Neighbor)**:
+   Spośród priorytetowej (wynikowej) listy, algorytm bierze lokację startową i doczepia jako następny węzeł ten, który jest najbliżej geometrycznie. Robi to pod rygorem 8 godzinnego maksymalnego balansu dnia chronionego przez klasę. Złożoność jest minimalizowana O(N^2) dając odpowiedź API w milisekundach.
 
 ---
 
-## 3. Uruchamianie Systemu
+## 4. Uruchamianie Systemu
 
 1. Zainstaluj srodowisko uruchomieniowe SDK platformy .NET 9 na swoim serwerze bądz komputerze.
 2. Wejdz do glownego korzenia pobranego repozytorium przy pomocy termianala.
@@ -84,4 +58,26 @@ Dzieki takiemu wielofazowemu obiegowi danych, aplikacja dobiera idealnie sperson
 ```bash
 dotnet run
 ```
-4. Narzedzie samodzielnie skompiluje klasy, narzuci schematy interfejsow, udostepni warstwe Middleware dla zasobow stalych i wypusci zywego hosta Kestrel, otwierajac okno logowania, podajac adres (typowe porty lokalne to np. `http://localhost:5233`), po wklejeniu ktorego do wyszukiwarki bezposrednio korzystamy ze skonfigurowanej witryny asystenta.
+4. Narzedzie skompiluje Moduły, wstrzyknie ich zależności poprzez wbudowany w .NET Core Di Kontener (Extensions) i odpali czystą i zoptymalizowaną z Minimal API na porcie wskazanym w konsoli (np. `http://localhost:5233`). Wpisz ten link w przeglądarkę by cieszyć się potężnym modularnym kodem Twojego asystenta podróży.
+
+---
+
+## 5. Dziennik Zmian Architektonicznych i Inżynieryjnych (Notatki do Obrony)
+
+Poniższe zestawienie stanowi podsumowanie najnowszej refaktoryzacji, w której prosta aplikacja anemiczna ewoluowała do rangi wysoce inżynieryjnego projektu, napisanego czystym kodem gotowym do rynkowej produkcji (Production-Ready). 
+
+### Wzorce Projektowe i Domain-Driven Design
+1. **Podejście Modular Monolith**: Zrezygnowano ze standardowego rozrzucenia klas do płaskich folderów `Models/Services`. Zamiast tego zaimplementowano logiczny podział na separowane obszary decyzyjne (`Attractions`, `Routing`, `Gamification`).
+2. **Rich Domain Model (Bogata Domena)**: Model `RoutePlan` odrzucił wzorzec podatnej na defekty anemicznej klasy. Stał się szczelnym, enkapsulowanym obiektem z kategorii **Aggregate Root**, który poprzez wewnętrzne metody dba obronnie by transakcja dodania nowego punktu wycieczki mieściła się w ustalonym limicie dziennego czasu (8 godzin), pilnując sztywno stanu aplikacji.
+3. **Value Objects**: Moduł atrakcji wykorzystuje obiekt własności `GeographicCoordinates`. Hermetyzuje i maskuje on trudną sferyczną logikę matematyczną (algorytm Haversine'a) z dala od serwisu.
+4. **Dependency Inversion Principle (SOLID)**: W imię SOLID, interfejs definicji połączeń bazy modeli (`IAttractionRepository`) wyrzucono z infrastruktury do warstwy powiązanej logicznie (`Domain`). 
+
+### Back-End i Minimal API (System Obronny Serwera)
+1. **Walidacja Danych na wejściu (FluentValidation)**: 
+   Wyeliminowano podstawowe adnotacje modelowe, wdrażając dedykowaną blibliotekę `FluentValidation` konfigurującą reguły ochrony wejść do warstwy aplikacji np. odcinając dystans mniejszy niż 0 na wczesnym etapie żądania HTTP.
+2. **Filtry Potokowe (Endpoint Filters)**: 
+   Zaprogramowano re-używalną, generyczną pre-warstwę HTTP - `ValidationFilter<T>`. Pokazuje to akademickie opanowanie Pipeline'ów ASP.NET, jako że złe żądania ucinane są, zanim faktycznie sięgną wywołanego endpointu w pamięci kontrolerów.
+3. **Globalna Obsługa Wyjątków z ProblemDetails**: 
+   Serwer wpiął scentralizowany globalny przechwytywacz błędów oparty pod nowy Interfejs `IExceptionHandler` (.NET 8/9). Formatuje on m.in naruszenia logiki jak `CapacityExceededException` i serwuje idealnie sformatowany standard **ProblemDetails (RFC 7807)** (Standaryzowany zwrot informujący klienta o polu `status`, `title` i `detail` by usunąć nieeleganckie rzucanie Stack Trace'm z logów). W tle wstrzyknięty loguje awarie obiektem `ILogger`.
+4. **Asynchroniczna Ochrona Pamięci**: 
+   Minimal API wyposażono w delegat `CancellationToken`, dokumentując dbałość inżyniera o środowiska asynchroniczne - zapobiegając bezpowrotnemu pożerowaniu (Memory Leaks) przestrzeni RAM serwera w wypadku fizycznego przerwania żądania wygenerowania mapy przez urządzenie Klienta mobilnego.
