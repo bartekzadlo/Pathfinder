@@ -2,6 +2,7 @@ using FluentValidation;
 using Microsoft.Extensions.DependencyInjection;
 using Pathfinder.Modules.Attractions.Domain;
 using Pathfinder.Modules.Attractions.Infrastructure;
+using Pathfinder.Modules.Attractions.Application;
 using Pathfinder.Modules.Routing.Application;
 using Pathfinder.Modules.Gamification.Application;
 using Pathfinder.Modules.Routing.Application.Validators;
@@ -14,6 +15,8 @@ public static class ModuleExtensions
     {
         // Attractions Module
         services.AddSingleton<IAttractionRepository, InMemoryAttractionRepository>();
+        services.AddSingleton<IReservationRepository, InMemoryReservationRepository>();
+        services.AddTransient<AttractionService>();
         
         // Routing Module
         services.AddTransient<RouteGeneratorService>();
